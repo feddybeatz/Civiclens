@@ -1,36 +1,32 @@
 import streamlit as st
 
+from ai.ai_engine import ask_gemma
+from ai.retrieval import library, retrieve
 from ui import components as c
-from ui import sample_data as d
+
+NOTE = ("Answers come from official budget documents and are checked against the "
+        "cited page. AI explanations are not official government statements.")
+
+SUGGESTED = [
+    "How much is allocated to education?",
+    "How much is allocated to health?",
+    "What is the Mwananchi Guide about?",
+]
+
+
+def _pretty(filename: str) -> str:
+    """mwananchi-guide-2024-25.pdf -> Mwananchi Guide 2024 25"""
+    return filename.removesuffix(".pdf").replace("-", " ").replace("_", " ").title()
 
 
 def answer_question(question: str) -> dict:
-    """PLACEHOLDER. Phase 5/6 replaces this with the real pipeline:
-    retrieve evidence -> Gemma 4 -> validate citations.
-
-    Keep the return shape: answer, status, document, page, excerpt, limitations.
-    """
-    if "health" in question.lower():
-        return {
-            "answer": ("Health services were allocated KSh 3.6 billion in FY 2025/26. "
-                       "That is 30% of the KSh 12.0 billion county budget. "
-                       "This tells us what was planned, not what was spent."),
-            "status": "supported",
-            "document": d.DOCUMENT["name"],
-            "page": 18,
-            "excerpt": "Health services: KSh 3,600,000,000, representing 30% of the total county budget of KSh 12,000,000,000.",
-            "limitations": "This is an allocation, not evidence of actual expenditure or services delivered.",
-        }
-    return {
-        "answer": ("I couldn’t find an answer to that in this document. "
-                   "That does not mean the information does not exist; this document alone "
-                   "cannot answer that question."),
-        "status": "no_evidence",
-        "document": None,
-        "page": None,
-        "excerpt": None,
-        "limitations": "This document cannot confirm the requested detail. No conclusion about delivery can be drawn.",
-    }
+    """Real pipeline: retrieve pages -> Gemma -> citation check."""
+    passages = retrieve(question)
+    first_doc = passages[0].get("document", "") if passages else ""
+    result = ask_gemma(question, passages, first_doc)
+    if result.get("document"):
+        result["document"] = _pretty(result["document"])
+    return result
 
 
 def _ask(question: str) -> None:
@@ -46,34 +42,42 @@ def render() -> None:
 
     c.page_header("Ask. Understand. Verify.", "Budget Assistant",
                   "Ask in plain language. Follow every explanation back to the document.")
-    c.banner(d.NOTE)
+    c.banner(NOTE)
 
+    lib = library()
     top_l, top_r = st.columns([4, 1])
     with top_l:
-        c.doc_card(d.DOCUMENT["name"], f'{d.DOCUMENT["pages"]} pages · {d.DOCUMENT["year"]}',
-                   badge_text="Ready")
+        c.doc_card("Official budget documents",
+                   f'{lib["documents"]} documents · {lib["pages"]} pages',
+                   badge_text="Ready" if lib["pages"] else "No documents")
     with top_r:
         st.button("New conversation", on_click=_reset, width="stretch")
 
     # A question can come from the input box or from a suggestion chip.
-    question = st.chat_input("Ask about this budget...") or st.session_state.pop("pending_q", None)
+    question = st.chat_input("Ask about the budget...") or st.session_state.pop("pending_q", None)
     if question:
         st.session_state.messages.append({"role": "user", "text": question})
-        st.session_state.messages.append({"role": "ai", "answer": answer_question(question)})
+        with st.spinner("Searching the documents..."):
+            answer = answer_question(question)
+        st.session_state.messages.append({"role": "ai", "answer": answer})
 
-    for m in st.session_state.messages:
+    for i, m in enumerate(st.session_state.messages):
         if m["role"] == "user":
             c.user_message(m["text"])
         else:
             c.ai_message(m["answer"])
+            url = m["answer"].get("source_url")
+            if url:
+                st.link_button("Open official document", url, key=f"src_{i}")
 
     if not st.session_state.messages:
         c.render('<div class="cl-muted" style="margin:24px 0">No questions yet. '
                  'Try one of the suggestions below.</div>')
 
     c.render('<div class="cl-label" style="margin-top:24px">Suggested questions</div>')
-    cols = st.columns(len(d.SUGGESTED))
-    for i, (col, q) in enumerate(zip(cols, d.SUGGESTED)):
+    cols = st.columns(len(SUGGESTED))
+    for i, (col, q) in enumerate(zip(cols, SUGGESTED)):
         with col:
             st.button(q, key=f"chip_{i}", on_click=_ask, args=(q,), width="stretch")
-    st.caption("Answers use the uploaded document. Always verify the cited page.")
+    st.caption("Answers use the official documents indexed in CivicLens. "
+               "Always verify the cited page.")

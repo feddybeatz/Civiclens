@@ -9,9 +9,13 @@ CSS = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-html, body, [class*="st-"], button, input, textarea {
+html, body, .stApp, .stApp p, .stApp li, .stApp label, .stApp button,
+.stApp input, .stApp textarea, .stApp h1, .stApp h2, .stApp h3, .stApp h4 {
   font-family: 'Inter', sans-serif;
 }
+[data-testid="stIconMaterial"] { font-family: 'Material Symbols Rounded' !important; }
+.stButton > button { height: auto; min-height: 2.5rem; }
+.stButton > button p { white-space: normal; line-height: 1.3; }
 .stApp { background: #F7F8F5; color: #1A1F1C; }
 header[data-testid="stHeader"] { background: transparent; }
 #MainMenu, footer { visibility: hidden; }
