@@ -1,0 +1,100 @@
+"""Recorded activity facts per member, imported from a CSV downloaded by hand.
+Counts only: no ranks, scores, parties or labels."""
+import csv, os, re, sqlite3
+
+DB = "data/index/record.db"
+SKIP = ("rank", "score", "party", "status", "coverage")
+
+def connect(path=DB):
+    d = os.path.dirname(path)
+    if d:
+        os.makedirs(d, exist_ok=True)
+    con = sqlite3.connect(path)
+    con.row_factory = sqlite3.Row
+    con.execute("""CREATE TABLE IF NOT EXISTS activity (
+        office_id TEXT NOT NULL, metric TEXT NOT NULL, value TEXT NOT NULL,
+        source TEXT NOT NULL, file_date TEXT NOT NULL,
+        PRIMARY KEY (office_id, metric, source))""")
+    con.commit()
+    return con
+
+def get(con, office_id):
+    return con.execute("SELECT metric, value, source, file_date FROM activity "
+                       "WHERE office_id=? ORDER BY metric", (office_id,)).fetchall()
+
+def toks(s):
+    s = s.lower().replace("\u2019", "'").replace("`", "'")
+    return frozenset(re.findall(r"[a-z0-9']+", s))
+
+def seat_toks(s):
+    s = s.lower().replace("\u2019", "'")
+    for k in ("county woman representative", "woman representative", "woman rep"):
+        s = s.replace(k, "cwr")
+    return frozenset(re.findall(r"[a-z0-9']+", s))
+
+def match(name, seat, mps, known):
+    t = toks(name)
+    if not t:
+        return None, ""
+    c = [o for o in mps if toks(o["name"]) == t]
+    if len(c) == 1:
+        return c[0], "exact"
+    st = seat_toks(seat) if seat else frozenset()
+    if st not in known or "nominated" in st:
+        st = frozenset()
+    if st:
+        c = [o for o in mps if seat_toks(o.get("seat", "")) == st and len(t & toks(o["name"])) >= 2]
+        if len(c) == 1:
+            return c[0], "constituency"
+    if len(t) >= 2:
+        c = [o for o in mps if t <= toks(o["name"]) or toks(o["name"]) <= t]
+        if st:
+            c = [o for o in c if seat_toks(o.get("seat", "")) == st]
+        if len(c) == 1:
+            return c[0], "subset"
+    return None, ""
+
+def _cols(rows, name_col, seat_col):
+    cols = list(rows[0].keys())
+    low = {c.lower(): c for c in cols}
+    name_col = name_col or low.get("name") or next((c for c in cols if "name" in c.lower()), None)
+    seat_col = seat_col or next((c for c in cols if c.lower() in ("area", "constituency", "seat")), None)
+    if not name_col:
+        raise SystemExit(f"No name column found. Columns: {cols}. Use --name-col.")
+    return cols, low, name_col, seat_col
+
+def _pairs(r, cols, low, name_col, seat_col):
+    if "leaderboard" in low and "count" in low:
+        return [((r.get(low["leaderboard"]) or "").strip(), (r.get(low["count"]) or "").strip())]
+    skip = [c for c in cols if any(k in c.lower() for k in SKIP)]
+    return [(c, (r.get(c) or "").strip()) for c in cols
+            if c not in (name_col, seat_col) and c not in skip]
+
+def load_csv(path, offices, source, file_date, name_col=None, seat_col=None):
+    rows = list(csv.DictReader(open(path, newline="", encoding="utf-8-sig")))
+    if not rows:
+        raise SystemExit("The CSV is empty.")
+    cols, low, name_col, seat_col = _cols(rows, name_col, seat_col)
+    mps = [o for o in offices if o.get("role") == "Member of the National Assembly"]
+    known = {seat_toks(o.get("seat", "")) for o in mps}
+    con = connect()
+    con.execute("DELETE FROM activity WHERE source=?", (source,))
+    methods, fuzzy, unmatched, people = {}, [], set(), set()
+    for r in rows:
+        nm = (r.get(name_col) or "").strip()
+        o, how = match(nm, (r.get(seat_col) or "") if seat_col else "", mps, known)
+        if not o:
+            unmatched.add(nm)
+            continue
+        methods[how] = methods.get(how, 0) + 1
+        people.add(o["id"])
+        if how != "exact":
+            fuzzy.append((nm, o["name"], how))
+        for metric, v in _pairs(r, cols, low, name_col, seat_col):
+            if metric and v:
+                con.execute("INSERT OR REPLACE INTO activity VALUES (?,?,?,?,?)",
+                            (o["id"], metric, v, source, file_date))
+    con.commit()
+    return {"rows": len(rows), "members": len(people), "methods": methods,
+            "fuzzy": sorted(set(fuzzy)), "unmatched": sorted(unmatched),
+            "name_col": name_col, "seat_col": seat_col}

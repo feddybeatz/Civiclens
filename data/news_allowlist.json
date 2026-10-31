@@ -1,0 +1,8 @@
+{
+  "_note": "Edit by hand. Verify each feed URL in a browser. Same rules for every outlet.",
+  "rss": [
+    {"outlet": "Citizen Digital", "feed": "https://citizen.digital/rss"},
+    {"outlet": "Capital FM", "feed": "https://www.capitalfm.co.ke/news/feed/"}
+  ],
+  "x_accounts": []
+}

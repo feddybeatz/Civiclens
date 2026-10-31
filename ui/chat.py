@@ -1,5 +1,7 @@
 import streamlit as st
 
+from ai.smalltalk import smalltalk
+from ai import votes, votes_answer
 from ai.ai_engine import ask_gemma
 from ai.retrieval import library, retrieve
 from ui import components as c
@@ -57,13 +59,22 @@ def render() -> None:
     question = st.chat_input("Ask about the budget...") or st.session_state.pop("pending_q", None)
     if question:
         st.session_state.messages.append({"role": "user", "text": question})
-        with st.spinner("Searching the documents..."):
-            answer = answer_question(question)
-        st.session_state.messages.append({"role": "ai", "answer": answer})
+        reply = smalltalk(question)
+        if not reply and votes_answer.is_vote_question(question):
+            reply = votes_answer.answer(question, votes.connect())
+        if reply:
+            st.session_state.messages.append({"role": "bot", "text": reply})
+        else:
+            with st.spinner("Searching the documents..."):
+                answer = answer_question(question)
+            st.session_state.messages.append({"role": "ai", "answer": answer})
 
     for i, m in enumerate(st.session_state.messages):
         if m["role"] == "user":
             c.user_message(m["text"])
+        elif m["role"] == "bot":
+            with st.chat_message("assistant"):
+                st.write(m["text"].replace("\n", "  \n"))
         else:
             c.ai_message(m["answer"])
             url = m["answer"].get("source_url")

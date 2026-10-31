@@ -1,149 +1,142 @@
-# CivicLens 🇰🇪
+# CivicLens
 
-### Where Did Our Money Go?
+**Where Did Our Money Go?** CivicLens lets Kenyan citizens ask questions about government budget documents in plain language and get answers that can be checked against the official source.
 
-**CivicLens** is an AI-powered civic transparency platform that helps Kenyans understand government and county budgets, explore public spending information, and make informed decisions through evidence-based insights.
+Every answer shows the document, the page, and the exact sentence it came from. If the documents don't answer the question, CivicLens says so instead of guessing.
 
-Powered by **Google Gemma 4**, CivicLens aims to make complex government financial documents easier to understand through natural-language questions, document analysis and visual insights.
+## How it works
 
-## 🎯 Problem Statement
+```
+official PDFs -> ingest.py -> data/index/pages.json   (offline, run when documents change)
 
-Government budget documents are often lengthy, technical and difficult for ordinary citizens to interpret. This limits public understanding of how public funds are allocated and spent, making meaningful public participation more difficult.
-
-## 💡 Our Solution
-
-CivicLens provides a platform where users can explore official government budget information, upload PDF documents, ask questions and receive clear explanations supported by relevant document evidence.
-
-## ✨ Key Features
-
-* **AI Budget Assistant:** Ask questions about government and county budgets using natural language.
-* **Document Analysis:** Upload and analyse official government budget PDFs.
-* **Evidence-Based Answers:** Display supporting excerpts, document names and page references.
-* **Budget Insights:** Explore financial allocations and expenditure information through visualisations.
-* **Public Participation:** Generate relevant questions citizens can raise during public participation forums.
-* **Information Gap Detection:** Highlight unclear allocations and missing explanations that require clarification.
-* **Cross-Source Analysis:** Designed to bring information from multiple official government platforms into one accessible interface.
-
-## 🛠️ Technology Stack
-
-| Technology     | Purpose             |
-| -------------- | ------------------- |
-| Python         | Backend development |
-| Streamlit      | User interface      |
-| Google Gemma 4 | AI-powered analysis |
-| PyMuPDF        | PDF text extraction |
-| Pandas         | Data processing     |
-| Plotly         | Data visualisation  |
-| Pydantic       | Data validation     |
-| Git & GitHub   | Version control     |
-
-## 🔄 How It Works
-
-1. Users upload official government budget documents or access available indexed information.
-2. CivicLens extracts and processes relevant document content.
-3. The system retrieves information related to the user's question.
-4. Gemma 4 analyses the retrieved evidence.
-5. CivicLens presents a plain-language response with supporting sources and page references where available.
-
-## 🏛️ Data Sources
-
-CivicLens is designed to use publicly available information from official Kenyan government platforms, including:
-
-* [Bajeti Yetu – National Treasury](https://bajetiyetu.treasury.go.ke/)
-* [The National Treasury](https://www.treasury.go.ke/)
-* [Office of the Controller of Budget](https://cob.go.ke/)
-* [Commission on Revenue Allocation](https://cra.go.ke/)
-* [Kenya Parliament](https://www.parliament.go.ke/)
-
-Data availability depends on the documents and information accessible from each source.
-
-## 🚀 Installation and Setup
-
-### 1. Clone the repository
-
-```bash
-git clone YOUR_GITHUB_REPOSITORY_URL
+question -> retrieve() -> top pages -> ask_gemma() -> citation check -> answer + evidence
+            (BM25)                     (Gemma API)     (word-for-word)
 ```
 
-### 2. Navigate into the project
+1. **Ingest** extracts text from each PDF, page by page, into `data/index/pages.json`.
+2. **Retrieve** scores pages against the question with BM25 and returns the top few.
+3. **Ask Gemma** sends only the question and those few pages to the model, which replies with JSON: answer, status, cited passage number, and an excerpt.
+4. **Validate** checks that the cited passage exists and that the excerpt appears word for word in it. If the check fails, the answer is discarded.
+5. **The UI** (Streamlit) shows the answer, the document, the page, the excerpt, and the limitations.
 
-```bash
-cd CivicLens
+Answer statuses: `supported`, `partial`, `no_evidence`, `error`.
+
+## Safety design
+
+- Only the question and the retrieved passages are sent to Google. The full PDFs stay on the machine.
+- Document text is treated as untrusted data. The prompt tells the model to ignore any instructions inside it.
+- Valid JSON is not trusted. The cited excerpt must appear word for word in the cited passage.
+- The model never writes the document or page itself. It cites a passage number, and the app looks up the document and page from that passage.
+- An allocation is described as a plan, not actual spending. A missing detail is never presented as wrongdoing.
+- Internal errors are never shown to users. They are logged to the terminal instead.
+
+## Project structure
+
+```
+Civiclens/
+  app.py                 Streamlit entry point and navigation
+  config.py              Settings read from .env
+  ingest.py              PDFs -> data/index/pages.json
+  ai/
+    ai_engine.py         Prompt, model call, JSON parsing, citation validation
+    retrieval.py         BM25 page retrieval
+  ui/
+    chat.py              Budget Assistant page (real pipeline)
+    dashboard.py, insights.py, participation.py, about.py   (still use sample data)
+    components.py, styles.py, sample_data.py
+  data/
+    pdfs/                PDFs with extractable text (indexed)
+    scanned/             Scanned PDFs waiting for OCR (not indexed)
+    index/pages.json     Generated page index
+    sources.json         Optional: filename -> official URL
 ```
 
-### 3. Create a virtual environment
+## Setup
 
 ```bash
-python -m venv venv
-```
-
-### 4. Activate the environment
-
-**Windows PowerShell:**
-
-```powershell
-.\venv\Scripts\Activate.ps1
-```
-
-### 5. Install dependencies
-
-```bash
+cd ~/projects/Civiclens
+python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
+pip install pymupdf rank-bm25 requests
 ```
 
-### 6. Configure environment variables
+Create `.env` in the project root:
 
-Create a `.env` file in the project root and add the required Gemma 4 API configuration.
-
-```env
-GEMMA_API_KEY=your_api_key_here
+```
+GEMINI_API_KEY=your-key-here
+GEMMA_MODEL=gemma-4-26b-a4b-it
 ```
 
-Use the actual environment variable names expected by your implementation.
+`config.py` also sets `REQUEST_TIMEOUT_MS = 120000` (milliseconds). Never commit `.env`.
 
-**Never upload API keys or secrets to GitHub.**
+## Adding documents
 
-### 7. Run the application
+1. Download PDFs from official sources (below) into `data/pdfs/` and give them short names, such as `mwananchi-guide-2024-25.pdf`.
+2. Run `python ingest.py`. It prints one line per PDF, for example `16 of 16 pages have text`.
+3. Move any PDF with far fewer text pages than total pages (a scan) into `data/scanned/`.
+4. Restart the app. The index is loaded at startup.
+
+To link answers back to the official document, add entries to `data/sources.json`:
+
+```json
+{"mwananchi-guide-2024-25.pdf": "https://official-url-of-the-document"}
+```
+
+Re-run `python ingest.py`. The UI then shows an "Open official document" button.
+
+### Official sources
+
+- Bajeti Yetu portal: https://bajetiyetu.treasury.go.ke/ (individual documents are public; the full document list requires a login, so download documents one at a time)
+- National Treasury budget books: https://www.treasury.go.ke/budget-books
+- Parliament budget documents: https://parliament.go.ke/2026-2027-budget-documents
+- Commission on Revenue Allocation: https://cra.go.ke/
+
+The Bajeti Yetu `robots.txt` blocks nothing. Keep downloads gentle anyway: one request at a time, with a pause, and a clear User-Agent.
+
+## Running
 
 ```bash
 streamlit run app.py
 ```
 
-The application should open in your browser.
+Open **Budget Assistant**. A question takes roughly 10 to 20 seconds.
 
-## 🔐 Transparency and Reliability
+## Testing without the UI
 
-CivicLens is designed around responsible use of AI and public financial information.
+```bash
+python test_engine.py                                   # fixed passage, expects supported + no_evidence
+python test_questions.py How much is allocated to education?
+```
 
-* Answers should be grounded in available official documents.
-* Financial figures should not be invented.
-* Sources and page references should be provided where available.
-* Documented facts should be distinguished from AI interpretations.
-* Missing or unclear information should be identified honestly.
-* Unclear allocations should not automatically be treated as evidence of corruption.
+Always check the cited excerpt against the real PDF page. That is the test that matters.
 
-## 🌍 Expected Impact
+## Known limitations
 
-CivicLens aims to:
+- **Scanned PDFs** (for example the 2022 Budget Circular and the 2019-2020 Supplementary Appropriation Act) have no text layer and are not indexed. They need OCR.
+- **Swahili questions** retrieve nothing, because BM25 matches English words only. The app declines instead of guessing. Fix: translate the question to English before retrieval.
+- **Tables** can extract as scrambled text, so some answers fail the word-for-word check. That is the safe outcome.
+- **Page numbers** are PDF page indexes, which can differ from the numbers printed on the page.
+- **Sample data:** the Dashboard, Insights and Participation pages still show the sample county, not real data.
+- **Model reliability:** `gemma-4-31b-it` returned HTTP 500 errors during testing, so the default is `gemma-4-26b-a4b-it`. `gemini-2.5-flash` is no longer available to new keys.
 
-* Improve public access to government budget information.
-* Make financial documents easier for citizens to understand.
-* Encourage evidence-based public participation.
-* Support transparency and accountability in public spending.
+## Troubleshooting
 
-## 🔮 Future Improvements
+| Symptom | Likely cause |
+|---|---|
+| "We couldn't generate an answer." | Check the terminal for the logged traceback |
+| `module 'config' has no attribute ...` | Missing setting in `config.py` |
+| `No module named 'ai.retrieval'` | File missing, or `ai/__init__.py` missing |
+| Request times out | Model slow or overloaded; check with a raw `curl` call, then retry or switch model |
+| HTTP 404 on a model | Model retired; list models with the `/v1beta/models` endpoint |
+| Answers don't change after adding PDFs | Re-run `ingest.py` and restart Streamlit |
 
-* Automated collection of documents from official government portals.
-* Regular updates when new budget documents become available.
-* Comparison of county and national budgets across financial years.
-* Improved financial data extraction and validation.
-* More advanced expenditure tracking and visual analytics.
-* Expanded support for additional government data sources.
+## Next steps
 
+1. Check the first real answers in the UI against the PDFs.
+2. Fill in `data/sources.json` with official URLs.
+3. Add more text-based documents (national and county budgets).
+4. Translate Swahili questions before retrieval.
+5. OCR the scanned documents.
+6. Replace the sample data on the other pages with figures extracted from the documents.
+7. Optional: a `sync.py` script that downloads documents listed in a `data/manifest.json`.
 
-
-## 👥 Project
-
-**CivicLens – Where Did Our Money Go?**
-
-Making public financial information easier to understand, question and verify.

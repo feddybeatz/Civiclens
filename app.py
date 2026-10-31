@@ -1,19 +1,21 @@
 import streamlit as st
+from ui import about, chat, dashboard, insights, opinion, participation, styles
 
-from ui import about, chat, dashboard, insights, participation, styles
 
 st.set_page_config(page_title="CivicLens", page_icon=":material/account_balance:", layout="wide")
 styles.inject()
 
 PAGES = {
-    "dashboard": st.Page(dashboard.render, title="Dashboard", icon=":material/dashboard:",
-                         url_path="dashboard", default=True),
+    "dashboard": st.Page(dashboard.render, title="Dashboard",
+                         icon=":material/dashboard:", url_path="dashboard"),
     "assistant": st.Page(chat.render, title="Budget Assistant", icon=":material/chat:",
-                         url_path="assistant"),
-    "insights": st.Page(insights.render, title="Budget Insights", icon=":material/bar_chart:",
-                        url_path="insights"),
+                         url_path="assistant", default=True),
+    "insights": st.Page(insights.render, title="Budget Insights",
+                        icon=":material/bar_chart:", url_path="insights"),
     "participation": st.Page(participation.render, title="Public Participation",
                              icon=":material/groups:", url_path="participation"),
+    "opinion": st.Page(opinion.render, title="Public Opinion",
+                       icon=":material/groups:", url_path="opinion"),
     "about": st.Page(about.render, title="About CivicLens", icon=":material/info:",
                      url_path="about"),
 }
