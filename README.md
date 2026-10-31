@@ -1,107 +1,149 @@
-# Civiclens
+# CivicLens 🇰🇪
 
+### Where Did Our Money Go?
 
-# Clone the repository
-git clone <YOUR_REPOSITORY_URL>
+**CivicLens** is an AI-powered civic transparency platform that helps Kenyans understand government and county budgets, explore public spending information, and make informed decisions through evidence-based insights.
 
-# Enter the project directory
-cd <YOUR_PROJECT_DIRECTORY>
+Powered by **Google Gemma 4**, CivicLens aims to make complex government financial documents easier to understand through natural-language questions, document analysis and visual insights.
 
-# Install dependencies using your project's package manager
-npm install
-# or
+## 🎯 Problem Statement
+
+Government budget documents are often lengthy, technical and difficult for ordinary citizens to interpret. This limits public understanding of how public funds are allocated and spent, making meaningful public participation more difficult.
+
+## 💡 Our Solution
+
+CivicLens provides a platform where users can explore official government budget information, upload PDF documents, ask questions and receive clear explanations supported by relevant document evidence.
+
+## ✨ Key Features
+
+* **AI Budget Assistant:** Ask questions about government and county budgets using natural language.
+* **Document Analysis:** Upload and analyse official government budget PDFs.
+* **Evidence-Based Answers:** Display supporting excerpts, document names and page references.
+* **Budget Insights:** Explore financial allocations and expenditure information through visualisations.
+* **Public Participation:** Generate relevant questions citizens can raise during public participation forums.
+* **Information Gap Detection:** Highlight unclear allocations and missing explanations that require clarification.
+* **Cross-Source Analysis:** Designed to bring information from multiple official government platforms into one accessible interface.
+
+## 🛠️ Technology Stack
+
+| Technology     | Purpose             |
+| -------------- | ------------------- |
+| Python         | Backend development |
+| Streamlit      | User interface      |
+| Google Gemma 4 | AI-powered analysis |
+| PyMuPDF        | PDF text extraction |
+| Pandas         | Data processing     |
+| Plotly         | Data visualisation  |
+| Pydantic       | Data validation     |
+| Git & GitHub   | Version control     |
+
+## 🔄 How It Works
+
+1. Users upload official government budget documents or access available indexed information.
+2. CivicLens extracts and processes relevant document content.
+3. The system retrieves information related to the user's question.
+4. Gemma 4 analyses the retrieved evidence.
+5. CivicLens presents a plain-language response with supporting sources and page references where available.
+
+## 🏛️ Data Sources
+
+CivicLens is designed to use publicly available information from official Kenyan government platforms, including:
+
+* [Bajeti Yetu – National Treasury](https://bajetiyetu.treasury.go.ke/)
+* [The National Treasury](https://www.treasury.go.ke/)
+* [Office of the Controller of Budget](https://cob.go.ke/)
+* [Commission on Revenue Allocation](https://cra.go.ke/)
+* [Kenya Parliament](https://www.parliament.go.ke/)
+
+Data availability depends on the documents and information accessible from each source.
+
+## 🚀 Installation and Setup
+
+### 1. Clone the repository
+
+```bash
+git clone YOUR_GITHUB_REPOSITORY_URL
+```
+
+### 2. Navigate into the project
+
+```bash
+cd CivicLens
+```
+
+### 3. Create a virtual environment
+
+```bash
+python -m venv venv
+```
+
+### 4. Activate the environment
+
+**Windows PowerShell:**
+
+```powershell
+.\venv\Scripts\Activate.ps1
+```
+
+### 5. Install dependencies
+
+```bash
 pip install -r requirements.txt
+```
 
-Environment Configuration
+### 6. Configure environment variables
 
-If the application uses environment variables, create a local ".env" file based on the project's example file:
+Create a `.env` file in the project root and add the required Gemma 4 API configuration.
 
-cp .env.example .env
+```env
+GEMMA_API_KEY=your_api_key_here
+```
 
-Add the required values to ".env". These may include database connection details and Gemma 4 configuration.
+Use the actual environment variable names expected by your implementation.
 
-Do not commit API keys, passwords, database credentials or other secrets to GitHub.
+**Never upload API keys or secrets to GitHub.**
 
-Run the Application
+### 7. Run the application
 
-Use the start command defined by the project. For example:
+```bash
+streamlit run app.py
+```
 
-npm run dev
+The application should open in your browser.
 
-For a Python application, use the run command documented in its backend configuration.
+## 🔐 Transparency and Reliability
 
-Replace these example commands with the actual installation and run instructions before publishing.
+CivicLens is designed around responsible use of AI and public financial information.
 
-Example Report
+* Answers should be grounded in available official documents.
+* Financial figures should not be invented.
+* Sources and page references should be provided where available.
+* Documented facts should be distinguished from AI interpretations.
+* Missing or unclear information should be identified honestly.
+* Unclear allocations should not automatically be treated as evidence of corruption.
 
-Issue: Large pothole near a school.
+## 🌍 Expected Impact
 
-Category: Roads / Infrastructure.
+CivicLens aims to:
 
-Description: A resident reports a large pothole on the road near a local school.
+* Improve public access to government budget information.
+* Make financial documents easier for citizens to understand.
+* Encourage evidence-based public participation.
+* Support transparency and accountability in public spending.
 
-If AI processing is enabled, Gemma 4 may help produce a concise summary and suggest the relevant category. The resulting report should still be reviewed by a person.
+## 🔮 Future Improvements
 
-Budget Insight
+* Automated collection of documents from official government portals.
+* Regular updates when new budget documents become available.
+* Comparison of county and national budgets across financial years.
+* Improved financial data extraction and validation.
+* More advanced expenditure tracking and visual analytics.
+* Expanded support for additional government data sources.
 
-Budget Insight is an extension we would like to explore for CivicLens. It could help residents understand public budget documents by:
 
-- Explaining budget terms in everyday language.
-- Summarizing allocations for areas such as roads and water.
-- Comparing allocations across financial years.
-- Linking explanations to the original public documents.
 
-Budget figures need to be presented carefully. An allocation is not the same as actual expenditure, and expenditure alone does not prove that a project was completed. Any figures shown should be linked to reliable source documents.
+## 👥 Project
 
-Current Project Status
+**CivicLens – Where Did Our Money Go?**
 
-CivicLens is a hackathon project and is being developed iteratively. Some features described in this README may be planned rather than available in the current version.
-
-Before publishing, mark each feature as implemented, in progress or planned, and update the setup instructions to match the code in this repository.
-
-Roadmap
-
-- [ ] Improve the issue reporting experience.
-- [ ] Refine AI-assisted classification and summaries.
-- [ ] Improve the community view and issue discovery.
-- [ ] Explore Community Pulse for recurring issue trends.
-- [ ] Develop Budget Insight using traceable public sources.
-- [ ] Test the platform with real users and community feedback.
-- [ ] Improve accessibility and multilingual support.
-
-Contributing
-
-Contributions, suggestions and feedback are welcome.
-
-1. Fork the repository.
-2. Create a branch for your change.
-3. Make your changes and test them.
-4. Commit your work with a clear message.
-5. Open a pull request explaining what you changed.
-
-Please avoid including private information, API keys or sensitive personal data in code, screenshots or sample reports.
-
-Responsible Use
-
-CivicLens is intended to help organize community information. It should not be treated as an official government reporting channel unless it is formally connected to the relevant authority.
-
-- Do not submit personal or sensitive information about other people.
-- Review AI-generated categories and summaries.
-- Do not present unverified reports as confirmed facts.
-- Keep the source of public budget information visible.
-- Do not claim an issue has been resolved without reliable confirmation.
-
-Team
-
-Project: CivicLens
-
-Event: Hacktoberfest Hack Day Nairobi
-
-Team Members
-1
-2
-3
-
----
-
-CivicLens — Helping communities make local issues visible.
+Making public financial information easier to understand, question and verify.
