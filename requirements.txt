@@ -3,3 +3,6 @@ plotly>=5.20
 pandas>=2.0
 google-genai
 python-dotenv
+pymupdf
+rank-bm25
+requests
